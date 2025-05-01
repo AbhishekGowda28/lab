@@ -1,6 +1,6 @@
 import request from "supertest";
 import app from "../server";
-import mongoose, { mongo } from "mongoose";
+import mongoose from "mongoose";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import User from "../models/User";
 import mongoDB, { closeMongoDBConnection } from "../config/db";
@@ -70,15 +70,34 @@ describe("User", () => {
                 });
                 expect(response.status).toBe(400);
             });
+            it("should return 500 when there is a server error during registration", async () => {
+                // Force an error when trying to save the new user.
+                jest.spyOn(User.prototype, "save").mockImplementationOnce(() => {
+                    throw new Error("Test error");
+                });
+
+                const response = await request(app).post("/api/users/register").send({
+                    username: "testuser",
+                    email: "test@example.com",
+                    password: "password123",
+                });
+                expect(response.status).toBe(500);
+                expect(response.body).toHaveProperty("message", "Server error");
+            });
         });
 
         describe("POST /api/users/login", () => {
-            it("should login an existing user", async () => {
+
+            beforeEach(async () => {
                 await request(app).post("/api/users/register").send({
                     username: "testuser",
                     email: "testUser@user.com",
                     password: "password123"
                 });
+            });
+
+            it("should login an existing user", async () => {
+
                 const response = await request(app).post("/api/users/login").send({
                     email: "testUser@user.com",
                     password: "password123",
@@ -94,18 +113,35 @@ describe("User", () => {
                 expect(response.status).toBe(400);
             });
 
-            it("should return 400 if email or password is incorrect", async () => {
-                await request(app).post("/api/users/register").send({
-                    username: "testuser",
-                    email: "test@user.com",
-                    password: "password123",
-                });
+            it("should return 400 if email is incorrect", async () => {
+
                 const response = await request(app).post("/api/users/login").send({
                     email: "user@user.com",
+                    password: "password123",
+                });
+                expect(response.status).toBe(400);
+                expect(response.body).toHaveProperty("message", "Invalid email or password");
+            });
+            it("should return 400 when trie to login with invalid password", async () => {
+                const response = await request(app).post("/api/users/login").send({
+                    email: "testUser@user.com",
                     password: "wrongpassword",
                 });
                 expect(response.status).toBe(400);
                 expect(response.body).toHaveProperty("message", "Invalid email or password");
+            });
+            it("should return 500 when there is a server error during login", async () => {
+                // Force an error when trying to save the new user.
+                jest.spyOn(User, "findOne").mockImplementationOnce(() => {
+                    throw new Error("Test error");
+                });
+
+                const response = await request(app).post("/api/users/login").send({
+                    email: "test@example.com",
+                    password: "password123",
+                });
+                expect(response.status).toBe(500);
+                expect(response.body).toHaveProperty("message", "Server error");
             });
         });
     });
