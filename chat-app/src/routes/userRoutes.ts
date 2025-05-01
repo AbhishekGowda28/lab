@@ -1,15 +1,22 @@
-import express, { Request, Response } from "express";
+import { Request, Response, Router } from "express";
 import bcrypt from "bcryptjs";
 import { User } from "../models"
 import { body, validationResult, } from "express-validator";
+import { AppRoutes } from "../types/AppRoutes";
 
-const router = express.Router();
+type RegisterRequest = Request<{}, {}, AppRoutes["/api/users/register"]["POST"]["body"]>;
+type RegisterResponse = Response<AppRoutes["/api/users/register"]["POST"]["response"]>;
+
+type LoginRequest = Request<{}, {}, AppRoutes["/api/users/login"]["POST"]["body"]>;
+type LoginResponse = Response<AppRoutes["/api/users/login"]["POST"]["response"]>;
+
+const router = Router();
 
 router.post("/register", [
     body("username").notEmpty().withMessage("Username is required"),
     body("email").isEmail().withMessage("Email is required"),
     body("password").isLength({ min: 8 }).withMessage("Password must be at least 8 characters long")
-], async (req: Request, res: Response): Promise<void> => {
+], async (req: RegisterRequest, res: RegisterResponse): Promise<void> => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         res.status(400).json({ errors: errors.array() });
@@ -56,7 +63,7 @@ router.post("/register", [
 router.post("/login", [
     body("email").isEmail().withMessage("Email is required"),
     body("password").notEmpty().withMessage("Password is required")
-], async (req: Request, res: Response): Promise<void> => {
+], async (req: LoginRequest, res: LoginResponse): Promise<void> => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         res.status(400).json({ errors: errors.array() });
@@ -72,21 +79,18 @@ router.post("/login", [
             return;
         }
 
-        if (existingUser) {
-            const isPasswordCorrect = await bcrypt.compare(password, existingUser.password);
-            if (!isPasswordCorrect) {
-                res.status(400).json({ message: "Invalid email or password" });
-                return;
-            }
-            res.status(200).json({
-                _id: existingUser._id,
-                username: existingUser.username,
-                email: existingUser.email,
-                createdAt: existingUser.createdAt,
-            });
+        const isPasswordCorrect = await bcrypt.compare(password, existingUser.password);
+        if (!isPasswordCorrect) {
+            res.status(400).json({ message: "Invalid email or password" });
             return;
         }
-        throw new Error("User not found");
+        res.status(200).json({
+            _id: existingUser._id,
+            username: existingUser.username,
+            email: existingUser.email,
+            createdAt: existingUser.createdAt,
+        });
+        return;
 
     } catch (error) {
         console.error("Error during login", { error });
