@@ -12,8 +12,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.get("/", (req, res) => {
-    res.send("API is running");
+app.get(["/", "/status"], (req, res) => {
+    res.status(200).send("API is running");
 });
 
 const PORT = process.env.PORT ?? 5000;
@@ -25,5 +25,9 @@ if (process.env.NODE_ENV !== "test") {
 }
 
 app.use("/api/users", userRoutes);
+
+app.use((req, res, next) => {
+    res.status(404).send("You are looking at wrong location");
+});
 
 export default app;
