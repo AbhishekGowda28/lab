@@ -28,10 +28,14 @@ export interface AppRoutes {
                 password: string;
             };
             response: {
-                _id: string;
-                username: string;
-                email: string;
-                createdAt: Date;
+                message: string;
+                token: string;
+                user: {
+                    _id: string;
+                    username: string;
+                    email: string;
+                    createdAt?: Date;
+                };
             } | {
                 errors: Array<ValidationError>;
             } | {
